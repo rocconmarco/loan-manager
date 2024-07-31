@@ -39,7 +39,7 @@ contract LoanManager {
         userBalance[msg.sender].availableSupply += msg.value;
     }
 
-    function borrow(address _lender, uint _amount) public {
+    function borrow(address _lender, uint256 _amount) public {
         require(_amount <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
         require(userBalance[_lender].availableSupply >= _amount, "Not enough funds to be borrowed. Try borrow from another user.");
         Loan memory loan = Loan(msg.sender, _lender, _amount);
@@ -52,8 +52,9 @@ contract LoanManager {
         userBalance[_lender].availableSupply -= _amount;
     }
 
-    function lend() public {
-        
+    function getActiveLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount) {
+        Loan memory loan = userBalance[_userAddress].loans[_loanId];
+        return (loan.borrower, loan.lender, loan.amount); 
     }
 
     constructor() {
