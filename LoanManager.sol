@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {InterestCalculator} from "./InterestCalculator.sol";
+
 contract LoanManager {
+    using InterestCalculator for uint256;
 
     struct Loan {
         address borrower;
         address lender;
         uint256 amount;
+        uint256 interests;
+        uint256 annualInterestRate;
         uint256 activationDate;
         uint256 repaymentDate;
-
-        // uint256 interestRate;
-        
-        
-        // string loanStatus;
+        string loanStatus;
     }
 
     struct Balance {
@@ -32,7 +33,6 @@ contract LoanManager {
     mapping (address => Balance) public userBalance;
 
     uint public constant COLLATERAL_FACTOR = 75;
-    // uint BORROW_APY;
 
     function depositCollateral() public payable {
         userBalance[msg.sender].availableCollateral += msg.value;
@@ -47,12 +47,18 @@ contract LoanManager {
         uint256 ethToBorrow = _ethAmount * 1e18;
 
         require(ethToBorrow <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
-        require(userBalance[_lender].availableSupply >= ethToBorrow, "Not enough funds to be borrowed. Try borrow from another user.");
+        require(userBalance[_lender].availableSupply >= ethToBorrow, "Not enough funds to be borrowed. Try borrow from another account.");
 
         uint256 activationDate = block.timestamp;
         uint256 repaymentDate = activationDate + (_repaymentTermInDays * 1 days);
+        string memory loanStatus = "active";
 
-        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow, activationDate, repaymentDate);
+        uint256 annualInterestRate = InterestCalculator.convertToPercentage(InterestCalculator.calculateInterestRate(_repaymentTermInDays));
+        uint256 interestAmount = InterestCalculator.calculateInterestAmount(ethToBorrow, _repaymentTermInDays);
+
+        
+
+        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow, interestAmount, annualInterestRate, activationDate, repaymentDate, loanStatus);
 
         userBalance[msg.sender].loans[userBalance[msg.sender].numLoans] = loan;
         userBalance[msg.sender].numLoans++;
@@ -63,12 +69,9 @@ contract LoanManager {
 
     }
 
-    function getActiveLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount, uint256 activationDate, uint256 repaymentDate) {
+    function getLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount, uint256 interests, uint256 annualInterestRate, uint256 activationDate, uint256 repaymentDate, uint256 daysToRepayment, string memory loanStatus) {
         Loan memory loan = userBalance[_userAddress].loans[_loanId];
-        return (loan.borrower, loan.lender, loan.amount, loan.activationDate, loan.repaymentDate); 
-    }
-
-    constructor() {
-        
+        daysToRepayment = (loan.repaymentDate - block.timestamp) / 86400;
+        return (loan.borrower, loan.lender, loan.amount, loan.interests, loan.annualInterestRate, loan.activationDate, loan.repaymentDate, daysToRepayment, loan.loanStatus); 
     }
 }
