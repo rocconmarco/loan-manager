@@ -44,30 +44,28 @@ contract LoanManager {
         userBalance[msg.sender].availableSupply += msg.value;
     }
 
-    function borrow(address _lender, uint256 _ethAmount, uint256 _repaymentTermInDays) public {
+    function borrow(address _lender, uint256 _amount, uint256 _repaymentTermInDays) public {
 
-        uint256 ethToBorrow = _ethAmount * 1e18;
-
-        require(ethToBorrow <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
-        require(userBalance[_lender].availableSupply >= ethToBorrow, "Not enough funds to be borrowed. Try borrow from another account.");
+        require(_amount <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
+        require(userBalance[_lender].availableSupply >= _amount, "Not enough funds to be borrowed. Try borrow from another account.");
 
         uint256 activationDate = block.timestamp;
         uint256 repaymentDate = activationDate + (_repaymentTermInDays * 1 days);
         string memory loanStatus = "active";
 
-        uint256 annualInterestRate = InterestCalculator.convertToPercentage(InterestCalculator.calculateInterestRate(_repaymentTermInDays));
-        uint256 interestAmount = InterestCalculator.calculateInterestAmount(ethToBorrow, _repaymentTermInDays);
-        uint256 actualInterestRate = (interestAmount * 100 * DECIMAL_PRECISION) / ethToBorrow;
+        uint256 annualInterestRate = (InterestCalculator.convertToPercentage(InterestCalculator.calculateInterestRate(_repaymentTermInDays))) * DECIMAL_PRECISION;
+        uint256 interestAmount = InterestCalculator.calculateInterestAmount(_amount, _repaymentTermInDays);
+        uint256 actualInterestRate = (interestAmount * 100 * DECIMAL_PRECISION) / _amount;
 
         
-        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow, interestAmount, annualInterestRate, actualInterestRate, activationDate, repaymentDate, loanStatus);
+        Loan memory loan = Loan(msg.sender, _lender, _amount, interestAmount, annualInterestRate, actualInterestRate, activationDate, repaymentDate, loanStatus);
 
         userBalance[msg.sender].loans[userBalance[msg.sender].numLoans] = loan;
         userBalance[msg.sender].numLoans++;
-        userBalance[msg.sender].totalLoanAmount += ethToBorrow;
+        userBalance[msg.sender].totalLoanAmount += _amount;
 
-        userBalance[msg.sender].availableCollateral -= ethToBorrow;
-        userBalance[_lender].availableSupply -= ethToBorrow;
+        userBalance[msg.sender].availableCollateral -= _amount;
+        userBalance[_lender].availableSupply -= _amount;
 
     }
 
