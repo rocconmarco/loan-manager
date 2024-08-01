@@ -7,9 +7,12 @@ contract LoanManager {
         address borrower;
         address lender;
         uint256 amount;
+        uint256 activationDate;
+        uint256 repaymentDate;
+
         // uint256 interestRate;
-        // uint256 startDate;
-        // uint256 finishDate;
+        
+        
         // string loanStatus;
     }
 
@@ -39,11 +42,17 @@ contract LoanManager {
         userBalance[msg.sender].availableSupply += msg.value;
     }
 
-    function borrow(address _lender, uint256 _ethAmount) public {
+    function borrow(address _lender, uint256 _ethAmount, uint256 _repaymentTermInDays) public {
+
         uint256 ethToBorrow = _ethAmount * 1e18;
+
         require(ethToBorrow <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
         require(userBalance[_lender].availableSupply >= ethToBorrow, "Not enough funds to be borrowed. Try borrow from another user.");
-        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow);
+
+        uint256 activationDate = block.timestamp;
+        uint256 repaymentDate = activationDate + (_repaymentTermInDays * 1 days);
+
+        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow, activationDate, repaymentDate);
 
         userBalance[msg.sender].loans[userBalance[msg.sender].numLoans] = loan;
         userBalance[msg.sender].numLoans++;
@@ -51,11 +60,12 @@ contract LoanManager {
 
         userBalance[msg.sender].availableCollateral -= ethToBorrow;
         userBalance[_lender].availableSupply -= ethToBorrow;
+
     }
 
-    function getActiveLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount) {
+    function getActiveLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount, uint256 activationDate, uint256 repaymentDate) {
         Loan memory loan = userBalance[_userAddress].loans[_loanId];
-        return (loan.borrower, loan.lender, loan.amount); 
+        return (loan.borrower, loan.lender, loan.amount, loan.activationDate, loan.repaymentDate); 
     }
 
     constructor() {
