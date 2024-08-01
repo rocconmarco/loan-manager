@@ -12,6 +12,7 @@ contract LoanManager {
         uint256 amount;
         uint256 interests;
         uint256 annualInterestRate;
+        uint256 actualInterestRate;
         uint256 activationDate;
         uint256 repaymentDate;
         string loanStatus;
@@ -32,7 +33,8 @@ contract LoanManager {
 
     mapping (address => Balance) public userBalance;
 
-    uint public constant COLLATERAL_FACTOR = 75;
+    uint constant COLLATERAL_FACTOR = 75;
+    uint constant DECIMAL_PRECISION = 10000;
 
     function depositCollateral() public payable {
         userBalance[msg.sender].availableCollateral += msg.value;
@@ -55,10 +57,10 @@ contract LoanManager {
 
         uint256 annualInterestRate = InterestCalculator.convertToPercentage(InterestCalculator.calculateInterestRate(_repaymentTermInDays));
         uint256 interestAmount = InterestCalculator.calculateInterestAmount(ethToBorrow, _repaymentTermInDays);
+        uint256 actualInterestRate = (interestAmount * 100 * DECIMAL_PRECISION) / ethToBorrow;
 
         
-
-        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow, interestAmount, annualInterestRate, activationDate, repaymentDate, loanStatus);
+        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow, interestAmount, annualInterestRate, actualInterestRate, activationDate, repaymentDate, loanStatus);
 
         userBalance[msg.sender].loans[userBalance[msg.sender].numLoans] = loan;
         userBalance[msg.sender].numLoans++;
@@ -69,9 +71,9 @@ contract LoanManager {
 
     }
 
-    function getLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount, uint256 interests, uint256 annualInterestRate, uint256 activationDate, uint256 repaymentDate, uint256 daysToRepayment, string memory loanStatus) {
+    function getLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount, uint256 interests, uint256 annualInterestRate, uint256 actualInterestRate, uint256 activationDate, uint256 repaymentDate, uint256 daysToRepayment, string memory loanStatus) {
         Loan memory loan = userBalance[_userAddress].loans[_loanId];
         daysToRepayment = (loan.repaymentDate - block.timestamp) / 86400;
-        return (loan.borrower, loan.lender, loan.amount, loan.interests, loan.annualInterestRate, loan.activationDate, loan.repaymentDate, daysToRepayment, loan.loanStatus); 
+        return (loan.borrower, loan.lender, loan.amount, loan.interests, loan.annualInterestRate, loan.actualInterestRate, loan.activationDate, loan.repaymentDate, daysToRepayment, loan.loanStatus); 
     }
 }
