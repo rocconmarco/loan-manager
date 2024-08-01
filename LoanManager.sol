@@ -39,17 +39,18 @@ contract LoanManager {
         userBalance[msg.sender].availableSupply += msg.value;
     }
 
-    function borrow(address _lender, uint256 _amount) public {
-        require(_amount <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
-        require(userBalance[_lender].availableSupply >= _amount, "Not enough funds to be borrowed. Try borrow from another user.");
-        Loan memory loan = Loan(msg.sender, _lender, _amount);
+    function borrow(address _lender, uint256 _ethAmount) public {
+        uint256 ethToBorrow = _ethAmount * 1e18;
+        require(ethToBorrow <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
+        require(userBalance[_lender].availableSupply >= ethToBorrow, "Not enough funds to be borrowed. Try borrow from another user.");
+        Loan memory loan = Loan(msg.sender, _lender, ethToBorrow);
 
         userBalance[msg.sender].loans[userBalance[msg.sender].numLoans] = loan;
         userBalance[msg.sender].numLoans++;
-        userBalance[msg.sender].totalLoanAmount += _amount;
+        userBalance[msg.sender].totalLoanAmount += ethToBorrow;
 
-        userBalance[msg.sender].availableCollateral -= _amount;
-        userBalance[_lender].availableSupply -= _amount;
+        userBalance[msg.sender].availableCollateral -= ethToBorrow;
+        userBalance[_lender].availableSupply -= ethToBorrow;
     }
 
     function getActiveLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount) {
