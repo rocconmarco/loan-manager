@@ -2,9 +2,11 @@
 pragma solidity ^0.8.0;
 
 import {InterestCalculator} from "./InterestCalculator.sol";
+import {PenaltyCalculator} from "./PenaltyCalculator.sol";
 
 contract LoanManager {
     using InterestCalculator for uint256;
+    using PenaltyCalculator for uint256;
 
     struct Loan {
         address borrower;
@@ -75,19 +77,32 @@ contract LoanManager {
     function repayLoan (uint256 _loanId) public payable {
         Loan storage loan = userBalance[msg.sender].loans[_loanId];
 
-        //to be repaid amount
-        // ...
+        uint256 daysOfDelay = (block.timestamp > loan.repaymentDate) ? (block.timestamp - loan.repaymentDate) / 86400 : 0;
+        uint256 penaltyAmount = InterestCalculator.calculateInterestAmount(loan.amount, daysOfDelay);
 
-        require(msg.value == loan.amount, "Please enter the correct amount to repay the loan.");
+        uint256 loanAmountPlusInterestsPlusPenalty = loan.amount + loan.interests + penaltyAmount;
+
+        require(msg.value == loanAmountPlusInterestsPlusPenalty, "Please enter the correct amount to repay the loan.");
 
         userBalance[msg.sender].availableCollateral += loan.amount;
-        userBalance[loan.lender].availableSupply += loan.amount;
+        userBalance[loan.lender].availableSupply += loanAmountPlusInterestsPlusPenalty;
         userBalance[msg.sender].totalLoanAmount -= loan.amount;
         userBalance[msg.sender].numLoans--;
 
-        loan.repaymentDate = 0;
+        loan.repaymentDate = block.timestamp;
         loan.loanStatus = "settled";
 
+    }
+
+    function checkPenalty(uint256 _loanId) public view returns (uint256 daysOfDelay, uint256 annualPenaltyRate, uint256 actualPenaltyRate, uint256 penaltyAmount) {
+        Loan memory loan = userBalance[msg.sender].loans[_loanId];
+
+        daysOfDelay = (block.timestamp > loan.repaymentDate) ? (block.timestamp - loan.repaymentDate) / 86400 : 0;
+
+        annualPenaltyRate = (PenaltyCalculator.convertToPercentage(PenaltyCalculator.calculatePenaltyRate(daysOfDelay))) * DECIMAL_PRECISION;
+        penaltyAmount = InterestCalculator.calculateInterestAmount(loan.amount, daysOfDelay);
+        actualPenaltyRate = (penaltyAmount * 100 * DECIMAL_PRECISION) / loan.amount;
+        return(daysOfDelay, annualPenaltyRate, actualPenaltyRate, penaltyAmount);
     }
 
     function getLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount, uint256 interests, uint256 annualInterestRate, uint256 actualInterestRate, uint256 activationDate, uint256 repaymentDate, uint256 daysToRepayment, string memory loanStatus) {
