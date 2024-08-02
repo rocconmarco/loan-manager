@@ -71,7 +71,22 @@ contract LoanManager {
 
     function getLoans(address _userAddress, uint256 _loanId) public view returns(address borrower, address lender, uint256 amount, uint256 interests, uint256 annualInterestRate, uint256 actualInterestRate, uint256 activationDate, uint256 repaymentDate, uint256 daysToRepayment, string memory loanStatus) {
         Loan memory loan = userBalance[_userAddress].loans[_loanId];
-        daysToRepayment = (loan.repaymentDate - block.timestamp) / 86400;
+        daysToRepayment = keccak256(abi.encodePacked(loan.loanStatus)) == keccak256(abi.encodePacked("active")) 
+        ? (loan.repaymentDate - block.timestamp) / 86400 : 0;
         return (loan.borrower, loan.lender, loan.amount, loan.interests, loan.annualInterestRate, loan.actualInterestRate, loan.activationDate, loan.repaymentDate, daysToRepayment, loan.loanStatus); 
+    }
+
+    function cancelLoan(address _userAddress, uint256 _loanId) public {
+        Loan storage loan = userBalance[_userAddress].loans[_loanId];
+
+        require(block.timestamp - loan.activationDate <= 1 days, "Loan cancellation is only possible within 1 day of activation; please repay your loan in the designated section.");
+
+        userBalance[_userAddress].availableCollateral += loan.amount;
+        userBalance[loan.lender].availableSupply += loan.amount;
+        userBalance[_userAddress].totalLoanAmount -= loan.amount;
+        userBalance[_userAddress].numLoans--;
+
+        loan.repaymentDate = 0;
+        loan.loanStatus = "cancelled";
     }
 }
