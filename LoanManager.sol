@@ -44,7 +44,7 @@ contract LoanManager {
         userBalance[msg.sender].availableSupply += msg.value;
     }
 
-    function borrow(address _lender, uint256 _amount, uint256 _repaymentTermInDays) public {
+    function borrow(address _lender, uint256 _amount, uint256 _repaymentTermInDays) public payable {
 
         require(_amount <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
         require(userBalance[_lender].availableSupply >= _amount, "Not enough funds to be borrowed. Try borrow from another account.");
@@ -60,12 +60,33 @@ contract LoanManager {
         
         Loan memory loan = Loan(msg.sender, _lender, _amount, interestAmount, annualInterestRate, actualInterestRate, activationDate, repaymentDate, loanStatus);
 
+        (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
+        require(sent, "Failed to send Ether");
+
         userBalance[msg.sender].loans[userBalance[msg.sender].numLoans] = loan;
         userBalance[msg.sender].numLoans++;
         userBalance[msg.sender].totalLoanAmount += _amount;
 
         userBalance[msg.sender].availableCollateral -= _amount;
         userBalance[_lender].availableSupply -= _amount;
+
+    }
+
+    function repayLoan (uint256 _loanId) public payable {
+        Loan storage loan = userBalance[msg.sender].loans[_loanId];
+
+        //to be repaid amount
+        // ...
+
+        require(msg.value == loan.amount, "Please enter the correct amount to repay the loan.");
+
+        userBalance[msg.sender].availableCollateral += loan.amount;
+        userBalance[loan.lender].availableSupply += loan.amount;
+        userBalance[msg.sender].totalLoanAmount -= loan.amount;
+        userBalance[msg.sender].numLoans--;
+
+        loan.repaymentDate = 0;
+        loan.loanStatus = "settled";
 
     }
 
@@ -76,15 +97,16 @@ contract LoanManager {
         return (loan.borrower, loan.lender, loan.amount, loan.interests, loan.annualInterestRate, loan.actualInterestRate, loan.activationDate, loan.repaymentDate, daysToRepayment, loan.loanStatus); 
     }
 
-    function cancelLoan(address _userAddress, uint256 _loanId) public {
-        Loan storage loan = userBalance[_userAddress].loans[_loanId];
+    function cancelLoan(uint256 _loanId) public payable {
+        Loan storage loan = userBalance[msg.sender].loans[_loanId];
 
         require(block.timestamp - loan.activationDate <= 1 days, "Loan cancellation is only possible within 1 day of activation; please repay your loan in the designated section.");
+        require(msg.value == loan.amount, "Please enter the exact amount of the loan to cancel.");
 
-        userBalance[_userAddress].availableCollateral += loan.amount;
+        userBalance[msg.sender].availableCollateral += loan.amount;
         userBalance[loan.lender].availableSupply += loan.amount;
-        userBalance[_userAddress].totalLoanAmount -= loan.amount;
-        userBalance[_userAddress].numLoans--;
+        userBalance[msg.sender].totalLoanAmount -= loan.amount;
+        userBalance[msg.sender].numLoans--;
 
         loan.repaymentDate = 0;
         loan.loanStatus = "cancelled";
