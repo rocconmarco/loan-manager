@@ -127,12 +127,16 @@ contract LoanManager {
         loan.loanStatus = "cancelled";
     }
 
-    function withdrawCollateral() public {
-
+    function withdrawCollateral(uint256 _amount) public payable {
+        require(_amount >= userBalance[msg.sender].availableCollateral, "The amount exceeds the available collateral.");
+        (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
+        require(sent, "Failed to send Ether.");
     }
 
-    function withdrawSuppliedLiquidity() public {
-        
+    function withdrawSupply(uint256 _amount) public {
+        require(_amount >= userBalance[msg.sender].availableSupply, "The amount exceeds the available supply.");
+        (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
+        require(sent, "Failed to send Ether.");
     }
 
     receive() external payable { 
