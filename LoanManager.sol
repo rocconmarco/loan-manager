@@ -126,4 +126,20 @@ contract LoanManager {
         loan.repaymentDate = 0;
         loan.loanStatus = "cancelled";
     }
+
+    function withdrawCollateral() public {
+
+    }
+
+    function withdrawSuppliedLiquidity() public {
+        
+    }
+
+    receive() external payable { 
+        depositCollateral();
+    }
+
+    fallback() external payable {
+        depositCollateral();
+     }
 }
