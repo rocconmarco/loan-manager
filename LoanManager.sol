@@ -21,10 +21,6 @@ contract LoanManager {
     }
 
     struct Balance {
-        // uint256 totalBalance;
-        // uint256 totalCollateral;
-        // uint256 totalSupply;
-        // uint256 globalLTV;
         uint256 availableCollateral;
         uint256 availableSupply;
         uint256 totalLoanAmount;
@@ -50,6 +46,7 @@ contract LoanManager {
 
         require(_amount <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
         require(userBalance[_lender].availableSupply >= _amount, "Not enough funds to be borrowed. Try borrow from another account.");
+        require(_repaymentTermInDays > 0, "The repayament term must be greater than 0.");
 
         uint256 activationDate = block.timestamp;
         uint256 repaymentDate = activationDate + (_repaymentTermInDays * 1 days);
@@ -62,7 +59,7 @@ contract LoanManager {
         
         Loan memory loan = Loan(msg.sender, _lender, _amount, interestAmount, annualInterestRate, actualInterestRate, activationDate, repaymentDate, loanStatus);
 
-        (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
+        (bool sent, ) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether");
 
         userBalance[msg.sender].loans[userBalance[msg.sender].numLoans] = loan;
@@ -87,15 +84,14 @@ contract LoanManager {
         userBalance[msg.sender].availableCollateral += loan.amount;
         userBalance[loan.lender].availableSupply += loanAmountPlusInterestsPlusPenalty;
         userBalance[msg.sender].totalLoanAmount -= loan.amount;
-        // userBalance[msg.sender].numLoans--;
 
         loan.repaymentDate = block.timestamp;
         loan.loanStatus = "settled";
 
     }
 
-    function checkPenalty(uint256 _loanId) public view returns (uint256 daysOfDelay, uint256 annualPenaltyRate, uint256 actualPenaltyRate, uint256 penaltyAmount) {
-        Loan memory loan = userBalance[msg.sender].loans[_loanId];
+    function checkPenalty(address _userAddress, uint256 _loanId) public view returns (uint256 daysOfDelay, uint256 annualPenaltyRate, uint256 actualPenaltyRate, uint256 penaltyAmount) {
+        Loan memory loan = userBalance[_userAddress].loans[_loanId];
 
         daysOfDelay = (loan.repaymentDate == 0 ? 0 : (block.timestamp > loan.repaymentDate) ? (block.timestamp - loan.repaymentDate) / 86400 : 0);
 
@@ -121,7 +117,6 @@ contract LoanManager {
         userBalance[msg.sender].availableCollateral += loan.amount;
         userBalance[loan.lender].availableSupply += loan.amount;
         userBalance[msg.sender].totalLoanAmount -= loan.amount;
-        // userBalance[msg.sender].numLoans--;
 
         loan.repaymentDate = 0;
         loan.loanStatus = "cancelled";
@@ -129,7 +124,7 @@ contract LoanManager {
 
     function withdrawCollateral(uint256 _amount) public payable {
         require(_amount >= userBalance[msg.sender].availableCollateral, "The amount exceeds the available collateral.");
-        (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
+        (bool sent, ) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether.");
 
         userBalance[msg.sender].availableCollateral -= _amount;
@@ -137,7 +132,7 @@ contract LoanManager {
 
     function withdrawSupply(uint256 _amount) public payable {
         require(_amount >= userBalance[msg.sender].availableSupply, "The amount exceeds the available supply.");
-        (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
+        (bool sent, ) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether.");
 
         userBalance[msg.sender].availableSupply -= _amount;
