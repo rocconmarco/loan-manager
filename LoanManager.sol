@@ -87,7 +87,7 @@ contract LoanManager {
         userBalance[msg.sender].availableCollateral += loan.amount;
         userBalance[loan.lender].availableSupply += loanAmountPlusInterestsPlusPenalty;
         userBalance[msg.sender].totalLoanAmount -= loan.amount;
-        userBalance[msg.sender].numLoans--;
+        // userBalance[msg.sender].numLoans--;
 
         loan.repaymentDate = block.timestamp;
         loan.loanStatus = "settled";
@@ -97,7 +97,7 @@ contract LoanManager {
     function checkPenalty(uint256 _loanId) public view returns (uint256 daysOfDelay, uint256 annualPenaltyRate, uint256 actualPenaltyRate, uint256 penaltyAmount) {
         Loan memory loan = userBalance[msg.sender].loans[_loanId];
 
-        daysOfDelay = (block.timestamp > loan.repaymentDate) ? (block.timestamp - loan.repaymentDate) / 86400 : 0;
+        daysOfDelay = (loan.repaymentDate == 0 ? 0 : (block.timestamp > loan.repaymentDate) ? (block.timestamp - loan.repaymentDate) / 86400 : 0);
 
         annualPenaltyRate = (PenaltyCalculator.convertToPercentage(PenaltyCalculator.calculatePenaltyRate(daysOfDelay))) * DECIMAL_PRECISION;
         penaltyAmount = InterestCalculator.calculateInterestAmount(loan.amount, daysOfDelay);
@@ -121,7 +121,7 @@ contract LoanManager {
         userBalance[msg.sender].availableCollateral += loan.amount;
         userBalance[loan.lender].availableSupply += loan.amount;
         userBalance[msg.sender].totalLoanAmount -= loan.amount;
-        userBalance[msg.sender].numLoans--;
+        // userBalance[msg.sender].numLoans--;
 
         loan.repaymentDate = 0;
         loan.loanStatus = "cancelled";
@@ -131,12 +131,16 @@ contract LoanManager {
         require(_amount >= userBalance[msg.sender].availableCollateral, "The amount exceeds the available collateral.");
         (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether.");
+
+        userBalance[msg.sender].availableCollateral -= _amount;
     }
 
-    function withdrawSupply(uint256 _amount) public {
+    function withdrawSupply(uint256 _amount) public payable {
         require(_amount >= userBalance[msg.sender].availableSupply, "The amount exceeds the available supply.");
         (bool sent, bytes memory data) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether.");
+
+        userBalance[msg.sender].availableSupply -= _amount;
     }
 
     receive() external payable { 
