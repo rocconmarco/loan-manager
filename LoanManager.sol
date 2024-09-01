@@ -42,7 +42,7 @@ contract LoanManager {
         userBalance[msg.sender].availableSupply += msg.value;
     }
 
-    function borrow(address _lender, uint256 _amount, uint256 _repaymentTermInDays) public payable {
+    function borrow(address _lender, uint256 _amount, uint256 _repaymentTermInDays) public {
 
         require(_amount <= (userBalance[msg.sender].availableCollateral * COLLATERAL_FACTOR) / 100,  "The requested amount exceeds the collateral factor (75%).");
         require(userBalance[_lender].availableSupply >= _amount, "Not enough funds to be borrowed. Try borrow from another account.");
@@ -131,7 +131,7 @@ contract LoanManager {
     }
 
     function withdrawSupply(uint256 _amount) public payable {
-        require(_amount >= userBalance[msg.sender].availableSupply, "The amount exceeds the available supply.");
+        require(_amount <= userBalance[msg.sender].availableSupply, "The amount exceeds the available supply.");
         (bool sent, ) = msg.sender.call{value: _amount}("");
         require(sent, "Failed to send Ether.");
 
