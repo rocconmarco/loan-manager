@@ -184,7 +184,7 @@ quindi indicare la somma da ritirare (in wei) e cliccare su "withdrawCollateral"
 
 <br>
 
-## Contact
+## Contacts
 
 <b>Marco Roccon - Digital Innovation & Development</b><br>
 Portfolio website: https://rocconmarco.github.io/<br>
